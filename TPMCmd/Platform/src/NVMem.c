@@ -45,7 +45,10 @@
 #include <assert.h>
 #include "Platform.h"
 #if FILE_BACKED_NV
-#   include         <stdio.h>
+#include <stdio.h>
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
 static FILE         *s_NvFile = NULL;
 static int           s_NeedsManufacture = FALSE;
 #endif
@@ -187,7 +190,7 @@ _plat__NVEnable(
     _plat__NvMemoryClear(0, NV_MEMORY_SIZE);
 
     // If the file exists
-    if(NvFileOpen("r+b") >= 0)
+    if(NvFileOpen("r+bc") >= 0)
     {
         long    fileSize = NvFileSize(SEEK_SET);    // get the file size and leave the
                                                     // file pointer at the start
@@ -205,7 +208,7 @@ _plat__NVEnable(
         }
     }
     // If NVChip file does not exist, try to create it for read/write. 
-    else if(NvFileOpen("w+b") >= 0)
+    else if(NvFileOpen("w+bc") >= 0)
     {
         NvFileCommit();             // Initialize the file
         s_NeedsManufacture = TRUE;
@@ -230,13 +233,21 @@ _plat__NVDisable(
 #if  FILE_BACKED_NV
     if(NULL != s_NvFile)
     {
+        fflush(s_NvFile);
+#ifndef _MSC_VER
+        int fsync_result = fsync(fileno(s_NvFile));
+	if (fsync_result != 0)
+	{
+		printf("fsync fail: %d\n", fsync_result);
+	}
+#endif
         fclose(s_NvFile);    // Close NV file
         // Alternative to deleting the file is to set its size to 0. This will not
         // match the NV size so the TPM will need to be remanufactured.
         if(delete)
         {
             // Open for writing at the start. Sets the size to zero.
-            if(NvFileOpen("w") >= 0)
+            if(NvFileOpen("wc") >= 0)
             {
                 fflush(s_NvFile);
                 fclose(s_NvFile);
