@@ -48,7 +48,12 @@
 #   include         <stdio.h>
 static FILE         *s_NvFile = NULL;
 static int           s_NeedsManufacture = FALSE;
-#endif
+#ifdef _MSC_VER
+#include <fileapi.h>
+#else
+#include <unistd.h>
+#endif // _MSC_VER
+#endif // FILE_BACKED_NV
 
 //**Functions
 
@@ -230,6 +235,7 @@ _plat__NVDisable(
 #if  FILE_BACKED_NV
     if(NULL != s_NvFile)
     {
+        fflush(s_NvFile);
         fclose(s_NvFile);    // Close NV file
         // Alternative to deleting the file is to set its size to 0. This will not
         // match the NV size so the TPM will need to be remanufactured.
@@ -242,6 +248,11 @@ _plat__NVDisable(
                 fclose(s_NvFile);
             }
         }
+#ifdef _MSV_VER
+        FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(s_NvFile)));
+#else
+        fsync(fileno(s_NvFile));
+#endif // _MSV_VER
     }
     s_NvFile = NULL;        // Set file handle to NULL
 #endif
